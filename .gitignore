@@ -1,0 +1,60 @@
+
+# Environnement Python
+.venv/
+venv/
+env/
+ENV/
+
+# Variables d'environnement et secrets
+.env
+.env.*
+!.env.example
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Dataset IRM
+data/raw/
+data/processed/
+data/splits/
+
+# Modeles entraines
+models/
+*.keras
+*.h5
+*.pt
+*.pth
+*.onnx
+*.weights
+
+# Resultats volumineux
+reports/predictions/
+reports/figures/
+reports/metrics/
+
+# Logs
+*.log
+logs/
+airflow/logs/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Configuration locale
+.vscode/
+.idea/
+
+# Tests et couverture
+.pytest_cache/
+.coverage
+htmlcov/
+
+# systeme
+.DS_Store
+Thumbs.db
+desktop.ini
