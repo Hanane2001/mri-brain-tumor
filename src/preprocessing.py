@@ -44,8 +44,8 @@ def augmenter_image(img):
     img = contrast(img)
     return tf.clip_by_value(img, 0.0, 1.0)
 
-def preparer_X_Y(path):
-    img = compter_images_par_classe(path)
+def preparer_X_Y():
+    img = compter_images_par_classe()
     X = []
     y = []
     for chemin, classe, fichier in img:
@@ -91,4 +91,23 @@ def save_donnees(x_train, x_val, x_test, y_train, y_val, y_test, name):
         df = pd.DataFrame({"chemin_img": X, "label": y})
         df.to_csv(f"data/processed/{name}_{partie}.csv", index=False)
     print("Donnees sauvegardees avec succes!")
+
+def main_preprocessing():
+    X, y = preparer_X_Y()
+    print("Nombre total d'images: ", len(X))
+    x_train, x_val, x_test, y_train, y_val, y_test = separer_data(X, y)
+    print("Train:", len(x_train))
+    print("Validation:", len(x_val))
+    print("Test:", len(x_test))
+    train_ds = cree_data_tf(x_train, y_train)
+    val_ds = cree_data_tf(x_val, y_val)
+    test_ds = cree_data_tf(x_test, y_test)
+    train_ds, val_ds, test_ds = pretret_charge_batch(train_ds, val_ds, test_ds)
+    save_donnees(x_train, x_val, x_test, y_train, y_val, y_test, name="irm")
+    print("Preprocessing termine avec succes")
+    return train_ds, val_ds, test_ds
+
+
+if __name__ == "__main__":
+    train_ds, val_ds, test_ds = main_preprocessing()   
 
