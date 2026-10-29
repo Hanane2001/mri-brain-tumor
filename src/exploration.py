@@ -3,10 +3,10 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 from PIL import Image
-from sklearn.model_selection import train_test_split
-import json
 import random
+import hashlib
 import os
+import shutil
 
 DATASET_ROOT = Path("data/raw")
 TRAIN_DATA = DATASET_ROOT / "Train"
@@ -132,6 +132,106 @@ def visualiser_images_par_classe():
             plt.axis("off")
         plt.show()
 
+def hash_image(chemin):
+    hasher = hashlib.sha256()
+    with open(chemin, "rb") as f:
+        for bloc in iter(lambda: f.read(4096), b""):
+            hasher.update(bloc)
+    return hasher.hexdigest()
+
+
+def detecter_doublons():
+    hashes = {}
+    doublons = []
+    dossiers = [("Train", TRAIN_DATA), ("Val", VAL_DATA)]
+    for partie, dossier in dossiers:
+        for classe in CLASSES:
+            chemin = dossier / classe / "images"
+            for fichier in chemin.iterdir():
+                try:
+                    h = hash_image(fichier)
+                    if h in hashes:
+                        doublons.append({"image_originale": hashes[h], "image_doublon": str(fichier)})
+                    else:
+                        hashes[h] = str(fichier)
+                except Exception as e:
+                    print(f"Erreur avec {fichier}: {e}")
+    return doublons
+
+def afficher_doublons():
+    doublons = detecter_doublons()
+    print("Nombre de doublons:", len(doublons))
+    return doublons
+
+def analyser_doublons():
+    doublons = detecter_doublons()
+    train_val = 0
+    train_train = 0
+    val_val = 0
+    for item in doublons:
+        original = Path(item["image_originale"])
+        copie = Path(item["image_doublon"])
+        partie_originale = original.parts[-5]
+        partie_copie = copie.parts[-5]
+        if partie_originale == partie_copie == "Train":
+            train_train += 1
+        elif partie_originale == partie_copie == "Val":
+            val_val += 1
+        else:
+            train_val += 1
+    print("Doublons Train-Val :", train_val)
+    print("Doublons Train-Train :", train_train)
+    print("Doublons Val-Val :", val_val)
+    print("Total :", len(doublons))
+
+def nettoyer_doublons():
+    doublons = detecter_doublons()
+    images_doublons = {str(Path(item["image_doublon"])) for item in doublons}
+    val_nettoye = Path("data/processed/Val")
+    if val_nettoye.exists():
+        shutil.rmtree(val_nettoye)
+    nb_supprimees = 0
+    nb_conservees = 0
+    for classe in CLASSES:
+        dossier_images = VAL_DATA / classe / "images"
+        dossier_labels = VAL_DATA / classe / "labels"
+        destination_images = val_nettoye / classe / "images"
+        destination_labels = val_nettoye / classe / "labels"
+        destination_images.mkdir(parents=True, exist_ok=True)
+        destination_labels.mkdir(parents=True, exist_ok=True)
+        if not dossier_images.exists():
+            continue
+        for image in dossier_images.iterdir():
+            if not image.is_file():
+                continue
+            if image.suffix.lower() not in IMAGES_FORMAT:
+                continue
+            if str(image) in images_doublons:
+                nb_supprimees += 1
+                continue
+            shutil.copy2(image, destination_images / image.name)
+            nb_conservees += 1
+            label = dossier_labels / f"{image.stem}.txt"
+            if label.exists():
+                shutil.copy2(label, destination_labels / label.name)
+    print("Nettoyage termine!")
+    print("Doublons exclus de Val:", nb_supprimees)
+    print("Images conservees dans Val:", nb_conservees)
+    print("Dossier:", val_nettoye)
+    return val_nettoye
+
+def compter_images_val_nettoye():
+    chemin_val = Path("data/processed/Val")
+    for classe in CLASSES:
+        dossier = chemin_val / classe / "images"
+        if dossier.exists():
+            images = [
+                f for f in dossier.iterdir()
+                if f.is_file()
+                and f.suffix.lower() in IMAGES_FORMAT
+            ]
+            print(f"{classe} : {len(images)} images")
+
 # id x y w h
 def explorer_annotations(nb=3):
     for classe in CLASSES:
@@ -185,9 +285,14 @@ if __name__ == "__main__":
     # print(res)
     # analyser_distribution_classes()
     # visualiser_images_par_classe()
-    valides, mauvais = verifier_images()
-    print("Images valides:", len(valides))
-    print("Images problématiques:", len(mauvais))
+    # valides, mauvais = verifier_images()
+    # print("Images valides:", len(valides))
+    # print("Images problématiques:", len(mauvais))
+    # db = afficher_doublons()
+    # analyser_doublons()
+    nettoyer_doublons()
+    compter_images_val_nettoye()
+    # print(db)
     # explorer_annotations()
     # verifier_bounding_boxes()
     # visualiser_bounding_boxes()

@@ -1,9 +1,8 @@
 import pandas as pd
-import numpy as np
+from pathlib import Path
 import os
 import tensorflow as tf
 from sklearn.model_selection import train_test_split 
-from exploration import compter_images_par_classe 
 
 from exploration import (
     CLASSES,
@@ -32,7 +31,8 @@ def normalise_img(img):
 
 def img_process(img_path, img_size=SIZE_IMG):
     img_en = tf.io.read_file(img_path)
-    img_de = tf.io.decode_jpeg(img_en, channels=3)
+    img_de = tf.io.decode_image(img_en, channels=3, expand_animations=False)
+    img_de.set_shape([None, None, 3])
     resized_img = tf.image.resize(img_de, img_size)
     return normalise_img(resized_img)
 
@@ -44,19 +44,19 @@ def augmenter_image(img):
     img = contrast(img)
     return tf.clip_by_value(img, 0.0, 1.0)
 
-def preparer_X_Y():
-    img = compter_images_par_classe()
+def preparer_X_Y(dossier):
     X = []
     y = []
-    for chemin, classe, fichier in img:
-        X.append(chemin)
-        y.append(classe)
+    for classe in CLASSES:
+        chemin = dossier / classe / "images"
+        for image in chemin.iterdir():
+                X.append(str(image))
+                y.append(CLASS_MAPPINGS[classe])
     return X, y
 
 def separer_data(X, y):
-    x_train_val, x_test, y_train_val, y_test = train_test_split(X, y, test_size=0.1, random_state=SEED, stratify=y)
-    x_train, x_val, y_train, y_val = train_test_split(x_train_val, y_train_val, test_size=1/9, random_state=SEED, stratify=y_train_val)
-    return x_train, x_val, x_test, y_train, y_val, y_test
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=SEED, stratify=y)
+    return x_train, x_test, y_train, y_test
 
 # Methode 1
 # def cree_data_tf(x_train, y_train, x_val, y_val, x_test, y_test):
@@ -93,9 +93,10 @@ def save_donnees(x_train, x_val, x_test, y_train, y_val, y_test, name):
     print("Donnees sauvegardees avec succes!")
 
 def main_preprocessing():
-    X, y = preparer_X_Y()
-    print("Nombre total d'images: ", len(X))
-    x_train, x_val, x_test, y_train, y_val, y_test = separer_data(X, y)
+    X, y = preparer_X_Y(TRAIN_DATA)
+    ch_val = Path("data/processed/Val")
+    x_val, y_val = preparer_X_Y(ch_val)
+    x_train, x_test, y_train, y_test = separer_data(X, y)
     print("Train:", len(x_train))
     print("Validation:", len(x_val))
     print("Test:", len(x_test))
