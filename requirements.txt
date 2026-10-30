@@ -6,3 +6,5 @@ pillow
 scikit-learn 
 tensorflow
 ultralytics
+PyYAML
+streamlit
